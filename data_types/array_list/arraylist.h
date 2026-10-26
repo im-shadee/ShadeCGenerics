@@ -34,7 +34,7 @@ arraylist* arraylist_copy(arraylist* source);
  * Gets the element in the array list at the specified index.
  * returns: The pointer to the array list element, or NULL in case of errors.
  */
-void* arraylist_get_at(arraylist* arraylist, int index);
+void* arraylist_get_at(arraylist* list, int index);
 
 /**
  * Adds an element to an arraylist.
@@ -43,7 +43,7 @@ void* arraylist_get_at(arraylist* arraylist, int index);
  *  - 1 if the operation succeeded
  *  - 0 if the operation failed (memory allocation issues)
  */
-int arraylist_add(arraylist* arraylist, void* elem);
+int arraylist_add(arraylist* list, void* elem);
 
 /**
  * Removes an element from an arraylist at the specified index.
@@ -51,7 +51,7 @@ int arraylist_add(arraylist* arraylist, void* elem);
  *  - 1 if the operation succeeded
  *  - 0 if the operation failed
  */
-int arraylist_remove_at(arraylist* arraylist, int index);
+int arraylist_remove_at(arraylist* list, int index);
 
 /**
  * Removes an element from an arraylist.
@@ -59,20 +59,20 @@ int arraylist_remove_at(arraylist* arraylist, int index);
  *  - 1 if the operation succeeded
  *  - 0 if the operation failed
  */
-int arraylist_remove(arraylist* arraylist, void* elem);
+int arraylist_remove(arraylist* list, void* elem);
 
 /** Clears the entire array. */
-void arraylist_clear(arraylist* arraylist);
+void arraylist_clear(arraylist* list);
 
 /** Frees the array and its contents. */
-void arraylist_free(arraylist* arraylist);
+void arraylist_free(arraylist* list);
 
 /** 
  * Prints the array's contents to stdout.
  * example: If the arraylist contains 1,2,3, arraylist_print will display [1, 2, 3].
  * remarks: Pass in a custom formatting function for the specific data type that the array contains.
  */
-void arraylist_print(arraylist* arraylist, void (*print_elem)(void* elem));
+void arraylist_print(arraylist* list, void (*print_elem)(void* elem));
 
 #ifdef ARRAYLIST_IMPLEMENTATION
 
@@ -80,18 +80,18 @@ void arraylist_print(arraylist* arraylist, void (*print_elem)(void* elem));
 /**
  * Reallocates the contents of an array list.
  * returns:
- *  1 if the operation succeeded
- *  0 if the operation failed (memory allocation issues)
+ *  - 1 if the operation succeeded
+ *  - 0 if the operation failed (memory allocation issues)
  */
-static int reallocate_content(arraylist* arraylist);
+static int reallocate_content(arraylist* list);
 
 /**
  * Checks whether an index is outside of an arraylist's bounds.
  * returns:
- *  1 if the index is out of bounds
- *  0 if the index is in bounds
+ *  - 1 if the index is out of bounds
+ *  - 0 if the index is in bounds
  */
-static int index_out_of_bounds(arraylist* arraylist, int index);
+static int index_out_of_bounds(arraylist* list, int index);
 // enddef
 
 arraylist* arraylist_create(int elem_size) {
@@ -120,6 +120,8 @@ arraylist* arraylist_create_with_capacity(int elem_size, int capacity) {
 }
 
 arraylist* arraylist_copy(arraylist* source) {
+    if (!source) return NULL;
+    
     arraylist* dest = arraylist_create_with_capacity(source->elem_size, source->capacity);
     if (!dest) return NULL;
 
@@ -137,51 +139,51 @@ arraylist* arraylist_copy(arraylist* source) {
     return dest;
 }
 
-void* arraylist_get_at(arraylist* arraylist, int index) {
-    return index_out_of_bounds(arraylist, index)
+void* arraylist_get_at(arraylist* list, int index) {
+    return index_out_of_bounds(list, index)
         ? NULL 
-        : (char*)arraylist->content + index * arraylist->elem_size;
+        : (char*)list->content + index * list->elem_size;
 }
 
-int arraylist_add(arraylist* arraylist, void* elem) {
+int arraylist_add(arraylist* list, void* elem) {
     // Check capacity: reallocate if size would overflow
-    if (arraylist->count >= arraylist->capacity) {
+    if (list->count >= list->capacity) {
         // reallocate_content returns 0 for issues, 1 otherwise
-        if (!reallocate_content(arraylist)) return 0;
+        if (!reallocate_content(list)) return 0;
     }
 
     // Add the element at the end of the list
-    void* target = (char*)arraylist->content + (arraylist->count * arraylist->elem_size);
-    memcpy(target, elem, arraylist->elem_size);
-    arraylist->count++;
+    void* target = (char*)list->content + (list->count * list->elem_size);
+    memcpy(target, elem, list->elem_size);
+    list->count++;
     return 1;
 }
 
-int arraylist_remove_at(arraylist* arraylist, int index) {
-    if (index_out_of_bounds(arraylist, index)) return 0;
+int arraylist_remove_at(arraylist* list, int index) {
+    if (index_out_of_bounds(list, index)) return 0;
     
-    int remainingBytes = (arraylist->count - index - 1) * arraylist->elem_size;
-    int offset = arraylist->elem_size * index;
+    int remainingBytes = (list->count - index - 1) * list->elem_size;
+    int offset = list->elem_size * index;
 
-    void* current = (char*)arraylist->content + offset;
-    void* next = (char*)arraylist->content + offset + arraylist->elem_size;
+    void* current = (char*)list->content + offset;
+    void* next = (char*)list->content + offset + list->elem_size;
             
     memmove(current, next, remainingBytes);
-    arraylist->count--;
+    list->count--;
     return 1;
 }
 
-int arraylist_remove(arraylist* arraylist, void* elem) {
-    for (int i = 0; i < arraylist->count; i++) {
-        int offset = arraylist->elem_size * i;
-        void* current = (char*)arraylist->content + offset;
+int arraylist_remove(arraylist* list, void* elem) {
+    for (int i = 0; i < list->count; i++) {
+        int offset = list->elem_size * i;
+        void* current = (char*)list->content + offset;
 
-        if (memcmp(current, elem, arraylist->elem_size) == 0) {
-            int remainingBytes = (arraylist->count - i - 1) * arraylist->elem_size;
-            void* next = (char*)arraylist->content + offset + arraylist->elem_size;
+        if (memcmp(current, elem, list->elem_size) == 0) {
+            int remainingBytes = (list->count - i - 1) * list->elem_size;
+            void* next = (char*)list->content + offset + list->elem_size;
             
             memmove(current, next, remainingBytes);
-            arraylist->count--;
+            list->count--;
             return 1;
         }
     }
@@ -189,29 +191,29 @@ int arraylist_remove(arraylist* arraylist, void* elem) {
     return 0;
 }
 
-void arraylist_clear(arraylist* arraylist) {
+void arraylist_clear(arraylist* list) {
     // Setting the count to 0 makes the other functions treat this array as empty.
     // Add operations would overwrite existing data, so we do not need to clear the internal buffer
-    arraylist->count = 0;
+    list->count = 0;
 }
 
-void arraylist_free(arraylist* arraylist) {
-    if (arraylist) {
-        free(arraylist->content);
-        free(arraylist);
+void arraylist_free(arraylist* list) {
+    if (list) {
+        free(arralistylist->content);
+        free(list);
     }
 }
 
-void arraylist_print(arraylist* arraylist, void (*print_elem)(void* elem)) {
+void arraylist_print(arraylist* list, void (*print_elem)(void* elem)) {
     printf("[");
 
-    for (int i = 0; i < arraylist->count; i++) {
-        int offset = arraylist->elem_size * i;
-        void* current = (char*)arraylist->content + offset;
+    for (int i = 0; i < list->count; i++) {
+        int offset = list->elem_size * i;
+        void* current = (char*)list->content + offset;
 
         print_elem(current);
 
-        if (i < arraylist->count - 1) {
+        if (i < list->count - 1) {
             printf(", ");
         }
     }
@@ -220,19 +222,19 @@ void arraylist_print(arraylist* arraylist, void (*print_elem)(void* elem)) {
 }
 
 // Internal methods
-static int reallocate_content(arraylist* arraylist) {
-    int new_capacity = arraylist->capacity * 2;
-    void* new_content = realloc(arraylist->content, arraylist->elem_size * new_capacity);
+static int reallocate_content(arraylist* list) {
+    int new_capacity = list->capacity * 2;
+    void* new_content = realloc(list->content, list->elem_size * new_capacity);
 
     if (!new_content) return 0;
     
-    arraylist->content = new_content;
-    arraylist->capacity = new_capacity;
+    list->content = new_content;
+    list->capacity = new_capacity;
     return 1;
 }
 
-static int index_out_of_bounds(arraylist* arraylist, int index) {
-    return index < 0 || index >= arraylist->count;
+static int index_out_of_bounds(arraylist* list, int index) {
+    return index < 0 || index >= list->count;
 }
 
 #endif // ARRAYLIST_IMPLEMENTATION
