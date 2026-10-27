@@ -8,7 +8,7 @@
 #define DEFAULT_ARRAY_CAPACITY 16
 
 typedef struct {
-    int elem_size, count, capacity;
+    size_t elem_size, count, capacity;
     void* content;
 } arraylist;
 
@@ -16,13 +16,13 @@ typedef struct {
  * Creates and initializes an arraylist with a fixed element size.
  * returns: A pointer to the created array structure, or NULL in case of errors.
  */
-arraylist* arraylist_create(int elem_size);
+arraylist* arraylist_create(size_t elem_size);
 
 /** 
  * Creates and initializes an arraylist with a custom element size.
  * returns: A pointer to the created array structure, or NULL in case of errors.
  */
-arraylist* arraylist_create_with_capacity(int elem_size, int capacity);
+arraylist* arraylist_create_with_capacity(size_t elem_size, size_t capacity);
 
 /**
  * Copies the contents of a source arraylist to a new arraylist.
@@ -34,7 +34,7 @@ arraylist* arraylist_copy(arraylist* source);
  * Gets the element in the array list at the specified index.
  * returns: The pointer to the array list element, or NULL in case of errors.
  */
-void* arraylist_get_at(arraylist* list, int index);
+void* arraylist_get_at(arraylist* list, size_t index);
 
 /**
  * Adds an element to an arraylist.
@@ -51,7 +51,7 @@ int arraylist_add(arraylist* list, void* elem);
  *  - 1 if the operation succeeded
  *  - 0 if the operation failed
  */
-int arraylist_remove_at(arraylist* list, int index);
+int arraylist_remove_at(arraylist* list, size_t index);
 
 /**
  * Removes an element from an arraylist.
@@ -91,14 +91,14 @@ static int reallocate_content(arraylist* list);
  *  - 1 if the index is out of bounds
  *  - 0 if the index is in bounds
  */
-static int index_out_of_bounds(arraylist* list, int index);
+static int index_out_of_bounds(arraylist* list, size_t index);
 // enddef
 
-arraylist* arraylist_create(int elem_size) {
+arraylist* arraylist_create(size_t elem_size) {
     return arraylist_create_with_capacity(elem_size, DEFAULT_ARRAY_CAPACITY);
 }
 
-arraylist* arraylist_create_with_capacity(int elem_size, int capacity) {
+arraylist* arraylist_create_with_capacity(size_t elem_size, size_t capacity) {
     // Allocate a chunk of memory for the structure
     arraylist* new = malloc(sizeof(arraylist));
 
@@ -129,8 +129,8 @@ arraylist* arraylist_copy(arraylist* source) {
     dest->count = source->count;
 
     // Iterate over source and add each element to dest
-    for (int i = 0; i < source->count; i++) {
-        int offset = source->elem_size * i;
+    for (size_t i = 0; i < source->count; i++) {
+        size_t offset = source->elem_size * i;
 
         // Cast to char* for pointer arithmetic
         memcpy((char*)dest->content + offset, (char*)source->content + offset, source->elem_size);
@@ -139,13 +139,15 @@ arraylist* arraylist_copy(arraylist* source) {
     return dest;
 }
 
-void* arraylist_get_at(arraylist* list, int index) {
+void* arraylist_get_at(arraylist* list, size_t index) {
     return index_out_of_bounds(list, index)
         ? NULL 
         : (char*)list->content + index * list->elem_size;
 }
 
 int arraylist_add(arraylist* list, void* elem) {
+    if (!list || ! elem) return 0;
+
     // Check capacity: reallocate if size would overflow
     if (list->count >= list->capacity) {
         // reallocate_content returns 0 for issues, 1 otherwise
@@ -159,7 +161,7 @@ int arraylist_add(arraylist* list, void* elem) {
     return 1;
 }
 
-int arraylist_remove_at(arraylist* list, int index) {
+int arraylist_remove_at(arraylist* list, size_t index) {
     if (index_out_of_bounds(list, index)) return 0;
     
     int remainingBytes = (list->count - index - 1) * list->elem_size;
@@ -174,8 +176,10 @@ int arraylist_remove_at(arraylist* list, int index) {
 }
 
 int arraylist_remove(arraylist* list, void* elem) {
-    for (int i = 0; i < list->count; i++) {
-        int offset = list->elem_size * i;
+    if (!list || !elem) return 0;
+
+    for (size_t i = 0; i < list->count; i++) {
+        size_t offset = list->elem_size * i;
         void* current = (char*)list->content + offset;
 
         if (memcmp(current, elem, list->elem_size) == 0) {
@@ -192,6 +196,7 @@ int arraylist_remove(arraylist* list, void* elem) {
 }
 
 void arraylist_clear(arraylist* list) {
+    if (!list) return;
     // Setting the count to 0 makes the other functions treat this array as empty.
     // Add operations would overwrite existing data, so we do not need to clear the internal buffer
     list->count = 0;
@@ -199,16 +204,17 @@ void arraylist_clear(arraylist* list) {
 
 void arraylist_free(arraylist* list) {
     if (list) {
-        free(arralistylist->content);
+        free(list->content);
         free(list);
     }
 }
 
 void arraylist_print(arraylist* list, void (*print_elem)(void* elem)) {
+    if (!list) return;
     printf("[");
 
-    for (int i = 0; i < list->count; i++) {
-        int offset = list->elem_size * i;
+    for (size_t i = 0; i < list->count; i++) {
+        size_t offset = list->elem_size * i;
         void* current = (char*)list->content + offset;
 
         print_elem(current);
@@ -223,6 +229,7 @@ void arraylist_print(arraylist* list, void (*print_elem)(void* elem)) {
 
 // Internal methods
 static int reallocate_content(arraylist* list) {
+    if (!list) return 0;
     int new_capacity = list->capacity * 2;
     void* new_content = realloc(list->content, list->elem_size * new_capacity);
 
@@ -233,8 +240,8 @@ static int reallocate_content(arraylist* list) {
     return 1;
 }
 
-static int index_out_of_bounds(arraylist* list, int index) {
-    return index < 0 || index >= list->count;
+static int index_out_of_bounds(arraylist* list, size_t index) {
+    return !list || index >= list->count;
 }
 
 #endif // ARRAYLIST_IMPLEMENTATION

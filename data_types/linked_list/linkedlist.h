@@ -12,16 +12,16 @@ typedef struct node {
 } node;
 
 typedef struct {
+    size_t count, elem_size;
     node* head; // Pointer to the first item
     node* tail; // Pointer to the last item
-    int count, elem_size;
 } linkedlist;
 
 /**
  * Creates a new linkedlist node with a fixed element size, and data to populate it with.
  * returns: A pointer to the created node structure, or NULL in case of errors.
  */
-node* create_node(int elem_size, void* elem);
+node* create_node(size_t elem_size, void* elem);
 
 /** Frees the node and its contents. */
 void free_node(node* node);
@@ -30,7 +30,7 @@ void free_node(node* node);
  * Creates a new linkedlist with a fixed element size.
  * returns: A pointer to the created linkedlist structure, or NULL in case of errors.
  */
-linkedlist* linkedlist_create(int elem_size);
+linkedlist* linkedlist_create(size_t elem_size);
 
 /**
  * Copies the contents of a source linkedlist to a new linkedlist.
@@ -42,7 +42,7 @@ linkedlist* linkedlist_copy(linkedlist* source);
  * Gets the element in the linkedlist at the specified index.
  * returns: The pointer to the linkedlist element, or NULL in case of errors.
  */
-void* linkedlist_get_at(linkedlist* list, int index);
+void* linkedlist_get_at(linkedlist* list, size_t index);
 
 /**
  * Adds an element to a linkedlist.
@@ -58,10 +58,10 @@ int linkedlist_add(linkedlist* list, void* elem);
  *  - 1 if the operation succeeded
  *  - 0 if the operation failed (memory allocation issues)
  */
-int linkedlist_insert_at(linkedlist* list, int index, void* elem);
+int linkedlist_insert_at(linkedlist* list, size_t index, void* elem);
 
 
-int linkedlist_remove_at(linkedlist* list, int index);
+int linkedlist_remove_at(linkedlist* list, size_t index);
 int linkedlist_remove(linkedlist* list, void* elem);
 int linkedlist_remove_last(linkedlist* list);
 
@@ -79,14 +79,14 @@ void linkedlist_print(linkedlist* list, void (*print_elem)(void* elem));
  *  - 1 if the index is out of bounds
  *  - 0 if the index is in bounds
  */
-static int index_out_of_bounds(linkedlist* list, int index);
+static int index_out_of_bounds(linkedlist* list, size_t index);
 
 /** Frees all nodes in a linked list. */
 static void free_all_nodes(linkedlist* list);
 // enddef
 
 // Node functions
-node* create_node(int elem_size, void* elem) {
+node* create_node(size_t elem_size, void* elem) {
     if (!elem) return NULL;
 
     // Allocate memory for the node
@@ -116,7 +116,7 @@ void free_node(node* node) {
 }
 
 // LinkedList functions
-linkedlist* linkedlist_create(int elem_size) {
+linkedlist* linkedlist_create(size_t elem_size) {
     // Allocate memory for the list
     linkedlist* new = malloc(sizeof(linkedlist));
     if (!new) return NULL;
@@ -150,7 +150,7 @@ linkedlist* linkedlist_copy(linkedlist* source) {
     return dest;
 }
 
-void* linkedlist_get_at(linkedlist* list, int index) {
+void* linkedlist_get_at(linkedlist* list, size_t index) {
     if (index_out_of_bounds(list, index)) return NULL;
 
     // If the index is closer to the tail; iterate backwards from tail, else forward from head
@@ -158,7 +158,7 @@ void* linkedlist_get_at(linkedlist* list, int index) {
     
     // Place current node at head/tail
     node* current = start_from_tail ? list->tail : list->head;
-    int ix = start_from_tail ? list->count - 1 : 0;
+    size_t ix = start_from_tail ? list->count - 1 : 0;
 
     // Iterate until we find the element (or reach the end of the list)
     while (current) {
@@ -198,7 +198,7 @@ int linkedlist_add(linkedlist* list, void* elem) {
     return 1;
 }
 
-int linkedlist_insert_at(linkedlist* list, int index, void* elem) {
+int linkedlist_insert_at(linkedlist* list, size_t index, void* elem) {
     if (index_out_of_bounds(list, index)) return 0;
 
     // If the index if the end of the list, append at the end
@@ -221,7 +221,7 @@ int linkedlist_insert_at(linkedlist* list, int index, void* elem) {
     // If the index is closer to the tail; iterate backwards from tail, else forward from head
     int start_from_tail = index > list->count / 2;
     node* current = start_from_tail ? list->tail : list->head;
-    int ix = start_from_tail ? list->count - 1 : 0;
+    size_t ix = start_from_tail ? list->count - 1 : 0;
 
     while (current) {
         if (index == ix) {
@@ -252,13 +252,13 @@ int linkedlist_insert_at(linkedlist* list, int index, void* elem) {
     return 0;
 }
 
-int linkedlist_remove_at(linkedlist* list, int index) {
+int linkedlist_remove_at(linkedlist* list, size_t index) {
     if (index_out_of_bounds(list, index)) return 0;
 
     // If the index is closer to the tail; iterate backwards from tail, else forward from head
     int start_from_tail = index > list->count / 2;
     node* current = start_from_tail ? list->tail : list->head;
-    int ix = start_from_tail ? list->count - 1 : 0;
+    size_t ix = start_from_tail ? list->count - 1 : 0;
 
     while (current) {
         if (index == ix) break;
@@ -365,8 +365,10 @@ void linkedlist_clear(linkedlist* list) {
 }
 
 void linkedlist_free(linkedlist* list) {
-    free_all_nodes(list);
-    free(list);
+    if (list) {
+        free_all_nodes(list);
+        free(list);
+    }
 }
 
 void linkedlist_print(linkedlist* list, void (*print_elem)(void* elem)) {
@@ -383,8 +385,8 @@ void linkedlist_print(linkedlist* list, void (*print_elem)(void* elem)) {
 }
 
 // Interal functions
-static int index_out_of_bounds(linkedlist* list, int index) {
-    return !list || index < 0 || index >= list->count;
+static int index_out_of_bounds(linkedlist* list, size_t index) {
+    return !list || index >= list->count;
 }
 
 static void free_all_nodes(linkedlist* list) {
