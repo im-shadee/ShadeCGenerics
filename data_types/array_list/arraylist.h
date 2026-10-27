@@ -210,7 +210,7 @@ void arraylist_free(arraylist* list) {
 }
 
 void arraylist_print(arraylist* list, void (*print_elem)(void* elem)) {
-    if (!list) return;
+    if (!list || !print_elem) return;
     printf("[");
 
     for (size_t i = 0; i < list->count; i++) {

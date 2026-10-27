@@ -60,14 +60,41 @@ int linkedlist_add(linkedlist* list, void* elem);
  */
 int linkedlist_insert_at(linkedlist* list, size_t index, void* elem);
 
-
+/**
+ * Removes an element from a linkedlist at the specified index.
+ * returns:
+ *  - 1 if the operation succeeded
+ *  - 0 if the operation failed
+ */
 int linkedlist_remove_at(linkedlist* list, size_t index);
+
+/**
+ * Removes an element from a linkedlist.
+ * returns:
+ *  - 1 if the operation succeeded
+ *  - 0 if the operation failed
+ */
 int linkedlist_remove(linkedlist* list, void* elem);
+
+/**
+ * Removes the element positioned at the tail of a linkedlist.
+ * returns:
+ *  - 1 if the operation succeeded
+ *  - 0 if the operation failed
+ */
 int linkedlist_remove_last(linkedlist* list);
 
+/** Clears the entire list. */
 void linkedlist_clear(linkedlist* list);
+
+/** Frees the list and its contents. */
 void linkedlist_free(linkedlist* list);
 
+/** 
+ * Prints the list's contents to stdout.
+ * example: If the linkedlist contains 1,2,3, linkedlist_print will display [1, 2, 3].
+ * remarks: Pass in a custom formatting function for the specific data type that the array contains.
+ */
 void linkedlist_print(linkedlist* list, void (*print_elem)(void* elem));
 
 #ifdef LINKEDLIST_IMPLEMENTATION
@@ -111,8 +138,10 @@ node* create_node(size_t elem_size, void* elem) {
 }
 
 void free_node(node* node) {
-    free(node->data);
-    free(node);
+    if (node) {
+        free(node->data);
+        free(node);
+    }
 }
 
 // LinkedList functions
@@ -372,7 +401,7 @@ void linkedlist_free(linkedlist* list) {
 }
 
 void linkedlist_print(linkedlist* list, void (*print_elem)(void* elem)) {
-    if (!list) return;
+    if (!list || !print_elem) return;
     printf("[");
 
     node* current = list->head;
