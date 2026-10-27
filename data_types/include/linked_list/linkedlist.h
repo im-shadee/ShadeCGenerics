@@ -106,7 +106,7 @@ void linkedlist_print(linkedlist* list, void (*print_elem)(void* elem));
  *  - 1 if the index is out of bounds
  *  - 0 if the index is in bounds
  */
-static int index_out_of_bounds(linkedlist* list, size_t index);
+static int linked_index_out_of_bounds(linkedlist* list, size_t index);
 
 /** Frees all nodes in a linked list. */
 static void free_all_nodes(linkedlist* list);
@@ -180,7 +180,7 @@ linkedlist* linkedlist_copy(linkedlist* source) {
 }
 
 void* linkedlist_get_at(linkedlist* list, size_t index) {
-    if (index_out_of_bounds(list, index)) return NULL;
+    if (linked_index_out_of_bounds(list, index)) return NULL;
 
     // If the index is closer to the tail; iterate backwards from tail, else forward from head
     int start_from_tail = index > list->count / 2;
@@ -228,7 +228,7 @@ int linkedlist_add(linkedlist* list, void* elem) {
 }
 
 int linkedlist_insert_at(linkedlist* list, size_t index, void* elem) {
-    if (index_out_of_bounds(list, index)) return 0;
+    if (linked_index_out_of_bounds(list, index)) return 0;
 
     // If the index if the end of the list, append at the end
     if (index == list->count) return linkedlist_add(list, elem);
@@ -282,7 +282,7 @@ int linkedlist_insert_at(linkedlist* list, size_t index, void* elem) {
 }
 
 int linkedlist_remove_at(linkedlist* list, size_t index) {
-    if (index_out_of_bounds(list, index)) return 0;
+    if (linked_index_out_of_bounds(list, index)) return 0;
 
     // If the index is closer to the tail; iterate backwards from tail, else forward from head
     int start_from_tail = index > list->count / 2;
@@ -407,6 +407,11 @@ void linkedlist_print(linkedlist* list, void (*print_elem)(void* elem)) {
     node* current = list->head;
     while (current) {
         print_elem(current->data);
+        
+        if (current->next) {
+            printf(", ");
+        }
+
         current = current->next;
     }
 
@@ -414,7 +419,7 @@ void linkedlist_print(linkedlist* list, void (*print_elem)(void* elem)) {
 }
 
 // Interal functions
-static int index_out_of_bounds(linkedlist* list, size_t index) {
+static int linked_index_out_of_bounds(linkedlist* list, size_t index) {
     return !list || index >= list->count;
 }
 

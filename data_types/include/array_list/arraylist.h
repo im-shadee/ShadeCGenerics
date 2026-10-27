@@ -91,7 +91,7 @@ static int reallocate_content(arraylist* list);
  *  - 1 if the index is out of bounds
  *  - 0 if the index is in bounds
  */
-static int index_out_of_bounds(arraylist* list, size_t index);
+static int array_index_out_of_bounds(arraylist* list, size_t index);
 // enddef
 
 arraylist* arraylist_create(size_t elem_size) {
@@ -140,7 +140,7 @@ arraylist* arraylist_copy(arraylist* source) {
 }
 
 void* arraylist_get_at(arraylist* list, size_t index) {
-    return index_out_of_bounds(list, index)
+    return array_index_out_of_bounds(list, index)
         ? NULL 
         : (char*)list->content + index * list->elem_size;
 }
@@ -162,7 +162,7 @@ int arraylist_add(arraylist* list, void* elem) {
 }
 
 int arraylist_remove_at(arraylist* list, size_t index) {
-    if (index_out_of_bounds(list, index)) return 0;
+    if (array_index_out_of_bounds(list, index)) return 0;
     
     int remainingBytes = (list->count - index - 1) * list->elem_size;
     int offset = list->elem_size * index;
@@ -240,7 +240,7 @@ static int reallocate_content(arraylist* list) {
     return 1;
 }
 
-static int index_out_of_bounds(arraylist* list, size_t index) {
+static int array_index_out_of_bounds(arraylist* list, size_t index) {
     return !list || index >= list->count;
 }
 

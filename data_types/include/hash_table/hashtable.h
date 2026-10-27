@@ -306,7 +306,7 @@ void hashtable_free(hashtable* table) {
     if (!table) return;
 
     // Free each bucket entry in each collision chain of the bucket array
-    for (int i = 0; i < table->capacity; i++) {
+    for (size_t i = 0; i < table->capacity; i++) {
         if (!table->buckets[i]) continue;
 
         bucket_entry* current = table->buckets[i];
@@ -331,7 +331,7 @@ void hashtable_print(hashtable* table, void (*print_key)(void* key), void (*prin
     int first = 1;
 
     // Iterate through the bucket array
-    for (int i = 0; i < table->capacity; i++) {
+    for (size_t i = 0; i < table->capacity; i++) {
         bucket_entry* current = table->buckets[i];
         
         // Iterate through the collision chain and print kvp individually until we run out of entries
@@ -387,7 +387,7 @@ void rehash(hashtable* table) {
     if (!expanded_buckets) return;
 
     // Migrate the old bucket array's contents into the new array
-    for (int i = 0; i < table->capacity; i++) {
+    for (size_t i = 0; i < table->capacity; i++) {
         if (!table->buckets[i]) continue;
 
         bucket_entry* current = table->buckets[i];
