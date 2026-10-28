@@ -101,15 +101,20 @@ int hashtable_delete(hashtable* table, void* key);
  */
 int hashtable_contains(hashtable* table, void* key);
 
+/** Clears the hashtable's contents. */
+void hashtable_clear(hashtable* table);
+
 /** Frees the hashtable and its contents. */
 void hashtable_free(hashtable* table);
 
+#ifdef SHADEC_DEBUG
 /** 
  * Prints the hashtable and its contents to stdout. 
  * example: If the hashtable contains (1, "A") and (2, "B"), hashtable_print will display {(1, "A"), (2, "B")}.
- * remarks: Pass in a custom formatting function for key/value data types
+ * remarks: Pass in a custom formatting function for key/value data types. Only available by defining SHADEC_DEBUG.
  */
 void hashtable_print(hashtable* table, void (*print_key)(void* key), void (*print_value)(void* value));
+#endif // SHADEC_DEBUG
 
 #ifdef HASHTABLE_IMPLEMENTATION
 
@@ -122,7 +127,7 @@ void hashtable_print(hashtable* table, void (*print_key)(void* key), void (*prin
 static bucket_entry* create_bucket(size_t key_size, size_t value_size, void* key, void* value);
 
 /** Frees the current bucket entry as well as its contents. */
-static void free_bucket(bucket_entry* bucket);
+static inline void free_bucket(bucket_entry* bucket);
 
 /** Rehashes a hashtable with twice the capacity as before. */
 static void rehash(hashtable* table);
@@ -131,13 +136,16 @@ static void rehash(hashtable* table);
 static size_t compute_nearest_power_of_2(size_t n);
 
 /** Gets and returns the bucket tied to as key's hash number in a hashtable. */
-bucket_entry* get_bucket(hashtable* table, void* key);
+static bucket_entry* get_bucket(hashtable* table, void* key);
 
 /** Computes the hash for a key using a custom hash function and returns its index in a hashtable with a set capacity. */
-size_t get_bucket_index(void* key, size_t capacity, uint32_t (*hash_function)(const void* key));
+static size_t get_bucket_index(void* key, size_t capacity, uint32_t (*hash_function)(const void* key));
+
+/** Iterates on the bucket array and frees each bucket chain. */
+static void free_all_buckets(hashtable* table);
 
 // Bucket functions
-bucket_entry* create_bucket(size_t key_size, size_t value_size, void* key, void* value) {
+static bucket_entry* create_bucket(size_t key_size, size_t value_size, void* key, void* value) {
     if (!key || !value) return NULL;
 
     // Allocate and null-check the created bucket entry
@@ -154,7 +162,7 @@ bucket_entry* create_bucket(size_t key_size, size_t value_size, void* key, void*
     return bucket;
 }
 
-void free_bucket(bucket_entry* bucket) {
+static void free_bucket(bucket_entry* bucket) {
     if (bucket) free(bucket);
 }
 
@@ -302,30 +310,27 @@ int hashtable_contains(hashtable* table, void* key) {
     return 0;
 }
 
+void hashtable_clear(hashtable* table) {
+    if (!table) return;
+
+    // Free each bucket chain in the bucket array
+    free_all_buckets(table);
+
+    // Ensure the array slots are reset to 0
+    memset(table->buckets, 0, table->capacity * sizeof(bucket_entry*));
+
+    // Reset the count. Keep the capacity available for reuse
+    table->count = 0;
+}
+
 void hashtable_free(hashtable* table) {
     if (!table) return;
 
-    // Free each bucket entry in each collision chain of the bucket array
-    for (size_t i = 0; i < table->capacity; i++) {
-        if (!table->buckets[i]) continue;
-
-        bucket_entry* current = table->buckets[i];
-        while (current) {
-            // Save the reference to the next entry to assign it back
-            bucket_entry* next = current->next;
-
-            // Free the current node
-            free(current);
-            current = next;
-        }
-    }
-
-    // Then free the array and table itself
+    // Free each bucket chain in the bucket array, then the array itself and the table
+    free_all_buckets(table);
     free(table->buckets);
     free(table);
 }
-
-// TODO: Clear method
 
 #ifdef SHADEC_DEBUG
 void hashtable_print(hashtable* table, void (*print_key)(void* key), void (*print_value)(void* value)) {
@@ -425,6 +430,23 @@ static inline bucket_entry* get_bucket(hashtable* table, void* key) {
     if (!key) return NULL;
     size_t index = get_bucket_index(key, table->capacity, table->hash_function);
     return table->buckets[index];
+}
+
+static void free_all_buckets(hashtable* table) {
+    // Free each bucket entry in each collision chain of the bucket array
+    for (size_t i = 0; i < table->capacity; i++) {
+        if (!table->buckets[i]) continue;
+
+        bucket_entry* current = table->buckets[i];
+        while (current) {
+            // Save the reference to the next entry to assign it back
+            bucket_entry* next = current->next;
+
+            // Free the current node
+            free(current);
+            current = next;
+        }
+    }
 }
 
 #endif // HASHTABLE_IMPLEMENTATION

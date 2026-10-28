@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "list_utils.h"
 
 typedef struct node {
     void* data; // Pointer to the data stored
@@ -90,26 +91,20 @@ void linkedlist_clear(linkedlist* list);
 /** Frees the list and its contents. */
 void linkedlist_free(linkedlist* list);
 
+#ifdef SHADEC_DEBUG
 /** 
  * Prints the list's contents to stdout.
  * example: If the linkedlist contains 1,2,3, linkedlist_print will display [1, 2, 3].
  * remarks: Pass in a custom formatting function for the specific data type that the array contains.
  */
 void linkedlist_print(linkedlist* list, void (*print_elem)(void* elem));
+#endif
 
 #ifdef LINKEDLIST_IMPLEMENTATION
 
 // Internal functions definition
 /** Frees all nodes in a linked list. */
 static void free_all_nodes(linkedlist* list);
-
-/**
- * Checks whether an index is outside of an linkedlist's bounds.
- * returns:
- *  - 1 if the index is out of bounds
- *  - 0 if the index is in bounds
- */
-static inline int linkedlist_index_out_of_bounds(linkedlist* list, size_t index);
 
 // Node functions
 node* create_node(size_t elem_size, void* elem) {
@@ -179,7 +174,7 @@ linkedlist* linkedlist_copy(linkedlist* source) {
 }
 
 void* linkedlist_get_at(linkedlist* list, size_t index) {
-    if (linkedlist_index_out_of_bounds(list, index)) return NULL;
+    if (!list || index_out_of_bounds(list->count, index)) return NULL;
 
     // If the index is closer to the tail; iterate backwards from tail, else forward from head
     int start_from_tail = index > list->count * 0.5;
@@ -227,7 +222,7 @@ int linkedlist_add(linkedlist* list, void* elem) {
 }
 
 int linkedlist_insert_at(linkedlist* list, size_t index, void* elem) {
-    if (linkedlist_index_out_of_bounds(list, index)) return 0;
+    if (!list || index_out_of_bounds(list->count, index)) return 0;
 
     // If the index if the end of the list, append at the end
     if (index == list->count) return linkedlist_add(list, elem);
@@ -281,7 +276,7 @@ int linkedlist_insert_at(linkedlist* list, size_t index, void* elem) {
 }
 
 int linkedlist_remove_at(linkedlist* list, size_t index) {
-    if (linkedlist_index_out_of_bounds(list, index)) return 0;
+    if (!list || index_out_of_bounds(list->count, index)) return 0;
 
     // If the index is closer to the tail; iterate backwards from tail, else forward from head
     int start_from_tail = index > list->count * 0.5;
@@ -420,10 +415,6 @@ void linkedlist_print(linkedlist* list, void (*print_elem)(void* elem)) {
 #endif // SHADEC_DEBUG
 
 // Interal functions
-static inline int index_out_of_bounds(linkedlist* list, size_t index) {
-    return !list || index >= list->count;
-}
-
 static void free_all_nodes(linkedlist* list) {
     if (!list) return;
 

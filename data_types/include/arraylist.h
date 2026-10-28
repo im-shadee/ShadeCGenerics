@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "list_utils.h"
 
 #define DEFAULT_ARRAY_CAPACITY 16
 
@@ -67,12 +68,14 @@ void arraylist_clear(arraylist* list);
 /** Frees the array and its contents. */
 void arraylist_free(arraylist* list);
 
+#ifdef SHADEC_DEBUG
 /** 
  * Prints the array's contents to stdout.
  * example: If the arraylist contains 1,2,3, arraylist_print will display [1, 2, 3].
  * remarks: Pass in a custom formatting function for the specific data type that the array contains.
  */
 void arraylist_print(arraylist* list, void (*print_elem)(void* elem));
+#endif
 
 #ifdef ARRAYLIST_IMPLEMENTATION
 
@@ -84,14 +87,6 @@ void arraylist_print(arraylist* list, void (*print_elem)(void* elem));
  *  - 0 if the operation failed (memory allocation issues)
  */
 static int reallocate_content(arraylist* list);
-
-/**
- * Checks whether an index is outside of an arraylist's bounds.
- * returns:
- *  - 1 if the index is out of bounds
- *  - 0 if the index is in bounds
- */
-static inline int arraylist_index_out_of_bounds(arraylist* list, size_t index);
 
 // Arraylist functions
 arraylist* arraylist_create(size_t elem_size) {
@@ -140,7 +135,7 @@ arraylist* arraylist_copy(arraylist* source) {
 }
 
 void* arraylist_get_at(arraylist* list, size_t index) {
-    return arraylist_index_out_of_bounds(list, index)
+    return !list || index_out_of_bounds(list->count, index)
         ? NULL 
         : (char*)list->content + index * list->elem_size;
 }
@@ -162,7 +157,7 @@ int arraylist_add(arraylist* list, void* elem) {
 }
 
 int arraylist_remove_at(arraylist* list, size_t index) {
-    if (arraylist_index_out_of_bounds(list, index)) return 0;
+    if (!list || index_out_of_bounds(list->count, index)) return 0;
     
     int remainingBytes = (list->count - index - 1) * list->elem_size;
     int offset = list->elem_size * index;
@@ -240,10 +235,6 @@ static int reallocate_content(arraylist* list) {
     list->content = new_content;
     list->capacity = new_capacity;
     return 1;
-}
-
-static inline int arraylist_index_out_of_bounds(arraylist* list, size_t index) {
-    return !list || index >= list->count;
 }
 
 #endif // ARRAYLIST_IMPLEMENTATION

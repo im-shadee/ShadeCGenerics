@@ -1,11 +1,13 @@
 #define ARRAYLIST_IMPLEMENTATION
 #define HASHTABLE_IMPLEMENTATION
 #define LINKEDLIST_IMPLEMENTATION
+#define BITSET_IMPLEMENTATION
 #define SHADEC_DEBUG
 
 #include "arraylist.h"
 #include "linkedlist.h"
 #include "hashtable.h"
+#include "bitset.h"
 
 // Printing/hash helpers
 // For printing integers
@@ -103,7 +105,67 @@ void test_hashtable() {
     printf("After deleting key 1: ");
     hashtable_print(table, print_int, print_string);
 
+    // Test clearing
+    hashtable_clear(table);
+    printf("After clearing: ");
+    hashtable_print(table, print_int, print_string);
+
     hashtable_free(table);
+    printf("\n");
+}
+
+void test_bitset() {
+    printf("--- Bitset ---\n");
+    
+    // Create a bitset of 16 bits
+    bitset* bs1 = bitset_create(16);
+    bitset* bs2 = bitset_create(16);
+    bitset* result = bitset_create(16);
+
+    // Test setting individual bits
+    bitset_set(bs1, 0);
+    bitset_set(bs1, 2);
+    bitset_set(bs1, 4);
+    bitset_set(bs1, 8);
+    printf("bs1 after setting bits 0, 2, 4, 8:\n  ");
+    bitset_print(bs1);
+
+    // Test clearing a bit
+    bitset_clear(bs1, 2);
+    printf("bs1 after clearing bit 2:\n  ");
+    bitset_print(bs1);
+
+    // Populate bs2
+    bitset_set(bs2, 4);
+    bitset_set(bs2, 8);
+    bitset_set(bs2, 10);
+    printf("bs2:\n  ");
+    bitset_print(bs2);
+
+    // Test Union (bs1 | bs2)
+    bitset_union(result, bs1, bs2);
+    printf("Union (bs1 | bs2):\n  ");
+    bitset_print(result);
+
+    // Test Intersection (bs1 & bs2)
+    bitset_intersection(result, bs1, bs2);
+    printf("Intersection (bs1 & bs2):\n  ");
+    bitset_print(result);
+
+    // Test Difference (bs1 \ bs2)
+    bitset_difference(result, bs1, bs2);
+    printf("Difference (bs1 \\ bs2):\n  ");
+    bitset_print(result);
+
+    // Test Complement (~bs1)
+    bitset_complement(result, bs1);
+    printf("Complement (~bs1):\n  ");
+    bitset_print(result);
+
+    // Cleanup
+    bitset_free(bs1);
+    bitset_free(bs2);
+    bitset_free(result);
     printf("\n");
 }
 
@@ -111,6 +173,7 @@ int main() {
     test_arraylist();
     test_linkedlist();
     test_hashtable();
+    test_bitset();
 
     return 0;
 }

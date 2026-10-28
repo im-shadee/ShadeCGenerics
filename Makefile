@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -Idata_types/include
+CFLAGS = -Wall -Wextra -std=c99 -O2 -Idata_types/include
 
 SRC_DIR = src
 OBJ_DIR = obj
