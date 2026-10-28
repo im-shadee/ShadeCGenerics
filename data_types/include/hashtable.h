@@ -25,16 +25,6 @@ typedef struct {
 } hashtable;
 
 /** 
- * Creates a standalone hashtable bucket with set key/value size and values. 
- * remarks: Keys and values are stored next to the bucket in memory space.
- * returns: A pointer to the created bucket_entry, or NULL in case of errors.
- */
-bucket_entry* create_bucket(size_t key_size, size_t value_size, void* key, void* value);
-
-/** Frees the current bucket entry as well as its contents. */
-void free_bucket(bucket_entry* bucket);
-
-/** 
  * Creates a hashtable and initializes its bucket array.
  * params:
  *  - key_size: the size of the keys held by the buckets.
@@ -124,11 +114,21 @@ void hashtable_print(hashtable* table, void (*print_key)(void* key), void (*prin
 #ifdef HASHTABLE_IMPLEMENTATION
 
 // Internal functions definition
+/** 
+ * Creates a standalone hashtable bucket with set key/value size and values. 
+ * remarks: Keys and values are stored next to the bucket in memory space.
+ * returns: A pointer to the created bucket_entry, or NULL in case of errors.
+ */
+static bucket_entry* create_bucket(size_t key_size, size_t value_size, void* key, void* value);
+
+/** Frees the current bucket entry as well as its contents. */
+static void free_bucket(bucket_entry* bucket);
+
 /** Rehashes a hashtable with twice the capacity as before. */
-void rehash(hashtable* table);
+static void rehash(hashtable* table);
 
 /** Computes and returns the nearest power of 2 of a number. */
-size_t compute_nearest_power_of_2(size_t n);
+static size_t compute_nearest_power_of_2(size_t n);
 
 /** Gets and returns the bucket tied to as key's hash number in a hashtable. */
 bucket_entry* get_bucket(hashtable* table, void* key);
@@ -325,6 +325,9 @@ void hashtable_free(hashtable* table) {
     free(table);
 }
 
+// TODO: Clear method
+
+#ifdef SHADEC_DEBUG
 void hashtable_print(hashtable* table, void (*print_key)(void* key), void (*print_value)(void* value)) {
     if (!table || !print_key || !print_value) return;
     printf("{");
@@ -355,9 +358,10 @@ void hashtable_print(hashtable* table, void (*print_key)(void* key), void (*prin
 
     printf("}\n");
 }
+#endif
 
 // Internal functions
-size_t compute_nearest_power_of_2(size_t n) {
+static size_t compute_nearest_power_of_2(size_t n) {
     // Ensure that n is always at least one (to avoid decrements below 0)
     if (n < 2) n = 1;
 
@@ -376,7 +380,7 @@ size_t compute_nearest_power_of_2(size_t n) {
     return n;
 }
 
-void rehash(hashtable* table) {
+static void rehash(hashtable* table) {
     if (!table) return;
 
     // Assuming the capacity is already a power of 2, multiply by 2 to get the next one
@@ -412,18 +416,16 @@ void rehash(hashtable* table) {
     table->capacity = new_capacity;
 }
 
-size_t get_bucket_index(void* key, size_t capacity, uint32_t (*hash_function)(const void* key)) {
-    // Hash the key and return the index
-    uint32_t hash = hash_function(key);
+static inline size_t get_bucket_index(void* key, size_t capacity, uint32_t (*hash_function)(const void* key)) {
+    uint32_t hash = hash_function(key); // Hash the key and return the index
     return hash & (capacity - 1);
 }
 
-bucket_entry* get_bucket(hashtable* table, void* key) {
+static inline bucket_entry* get_bucket(hashtable* table, void* key) {
     if (!key) return NULL;
     size_t index = get_bucket_index(key, table->capacity, table->hash_function);
     return table->buckets[index];
 }
 
 #endif // HASHTABLE_IMPLEMENTATION
-
 #endif // HASHTABLE_H

@@ -54,3 +54,7 @@ dkms.conf
 # Compilation folders
 [oO]bj/
 [bB]in/
+
+# IDE
+.idea
+.vscode

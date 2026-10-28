@@ -1,8 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 \
-         -Idata_types/include/array_list \
-         -Idata_types/include/hash_table \
-         -Idata_types/include/linked_list
+CFLAGS = -Wall -Wextra -std=c99 -Idata_types/include
 
 SRC_DIR = src
 OBJ_DIR = obj

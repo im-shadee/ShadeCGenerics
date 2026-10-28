@@ -91,9 +91,9 @@ static int reallocate_content(arraylist* list);
  *  - 1 if the index is out of bounds
  *  - 0 if the index is in bounds
  */
-static int array_index_out_of_bounds(arraylist* list, size_t index);
-// enddef
+static inline int arraylist_index_out_of_bounds(arraylist* list, size_t index);
 
+// Arraylist functions
 arraylist* arraylist_create(size_t elem_size) {
     return arraylist_create_with_capacity(elem_size, DEFAULT_ARRAY_CAPACITY);
 }
@@ -140,7 +140,7 @@ arraylist* arraylist_copy(arraylist* source) {
 }
 
 void* arraylist_get_at(arraylist* list, size_t index) {
-    return array_index_out_of_bounds(list, index)
+    return arraylist_index_out_of_bounds(list, index)
         ? NULL 
         : (char*)list->content + index * list->elem_size;
 }
@@ -162,7 +162,7 @@ int arraylist_add(arraylist* list, void* elem) {
 }
 
 int arraylist_remove_at(arraylist* list, size_t index) {
-    if (array_index_out_of_bounds(list, index)) return 0;
+    if (arraylist_index_out_of_bounds(list, index)) return 0;
     
     int remainingBytes = (list->count - index - 1) * list->elem_size;
     int offset = list->elem_size * index;
@@ -209,6 +209,7 @@ void arraylist_free(arraylist* list) {
     }
 }
 
+#ifdef SHADEC_DEBUG
 void arraylist_print(arraylist* list, void (*print_elem)(void* elem)) {
     if (!list || !print_elem) return;
     printf("[");
@@ -226,6 +227,7 @@ void arraylist_print(arraylist* list, void (*print_elem)(void* elem)) {
 
     printf("]\n");
 }
+#endif
 
 // Internal methods
 static int reallocate_content(arraylist* list) {
@@ -240,10 +242,9 @@ static int reallocate_content(arraylist* list) {
     return 1;
 }
 
-static int array_index_out_of_bounds(arraylist* list, size_t index) {
+static inline int arraylist_index_out_of_bounds(arraylist* list, size_t index) {
     return !list || index >= list->count;
 }
 
 #endif // ARRAYLIST_IMPLEMENTATION
-
 #endif // ARRAYLIST_H

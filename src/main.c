@@ -1,6 +1,7 @@
 #define ARRAYLIST_IMPLEMENTATION
 #define HASHTABLE_IMPLEMENTATION
 #define LINKEDLIST_IMPLEMENTATION
+#define SHADEC_DEBUG
 
 #include "arraylist.h"
 #include "linkedlist.h"
