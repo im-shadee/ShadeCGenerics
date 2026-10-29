@@ -2,7 +2,7 @@
 #define HASHTABLE_H
 
 #define DEFAULT_HTABLE_CAPACITY 16
-#define REHASH_THRESHOLD 0.85
+#define REHASH_THRESHOLD 0.75
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -13,6 +13,7 @@
 typedef struct bucket_entry {
     void* key;
     void* value;
+    uint32_t hash; // Cached hash to avoid recalculations
     struct bucket_entry* next; // Pointer to the next element in the chain (for collision handling)
 } bucket_entry;
 
@@ -23,22 +24,6 @@ typedef struct {
     uint32_t (*hash_function)(const void* key); // Key-specific hash function passed at init time
     int (*key_equals)(const void* lhs, const void* rhs); // Key comparison function passed at init time
 } hashtable;
-
-/** 
- * Creates a hashtable and initializes its bucket array.
- * params:
- *  - key_size: the size of the keys held by the buckets.
- *  - value_size: the size of the values held by the buckets.
- *  - hash_function: the hash function used to hash the keys.
- *  - key_equals: Comparison function to compare keys.
- * 
- * returns: A pointer to the created hashtable, or NULL in case of errors.
- */
-hashtable* hashtable_create(
-    size_t key_size, 
-    size_t value_size, 
-    uint32_t (*hash_function)(const void* key), 
-    int (*key_equals)(const void* lhs, const void* rhs));
 
 /** 
  * Creates a hashtable and initializes its bucket array.
@@ -58,6 +43,25 @@ hashtable* hashtable_create_with_capacity(
     uint32_t (*hash_function)(const void* key),
     int (*key_equals)(const void* lhs, const void* rhs),
     size_t capacity);
+
+/** 
+ * Creates a hashtable and initializes its bucket array.
+ * params:
+ *  - key_size: the size of the keys held by the buckets.
+ *  - value_size: the size of the values held by the buckets.
+ *  - hash_function: the hash function used to hash the keys.
+ *  - key_equals: Comparison function to compare keys.
+ * 
+ * returns: A pointer to the created hashtable, or NULL in case of errors.
+ */
+static inline hashtable* hashtable_create(
+    size_t key_size, 
+    size_t value_size, 
+    uint32_t (*hash_function)(const void* key), 
+    int (*key_equals)(const void* lhs, const void* rhs)) 
+{
+    return hashtable_create_with_capacity(key_size, value_size, hash_function, key_equals, DEFAULT_HTABLE_CAPACITY);
+}
 
 /** 
  * Gets the value from a key in a hashtable.
@@ -99,7 +103,9 @@ int hashtable_delete(hashtable* table, void* key);
  *  - 1 if the table contains the key
  *  - 0 if the table does not contain it
  */
-int hashtable_contains(hashtable* table, void* key);
+static inline int hashtable_contains(hashtable* table, void* key) {
+    return hashtable_get(table, key) != NULL;
+}
 
 /** Clears the hashtable's contents. */
 void hashtable_clear(hashtable* table);
@@ -124,28 +130,7 @@ void hashtable_print(hashtable* table, void (*print_key)(void* key), void (*prin
  * remarks: Keys and values are stored next to the bucket in memory space.
  * returns: A pointer to the created bucket_entry, or NULL in case of errors.
  */
-static bucket_entry* create_bucket(size_t key_size, size_t value_size, void* key, void* value);
-
-/** Frees the current bucket entry as well as its contents. */
-static inline void free_bucket(bucket_entry* bucket);
-
-/** Rehashes a hashtable with twice the capacity as before. */
-static void rehash(hashtable* table);
-
-/** Computes and returns the nearest power of 2 of a number. */
-static size_t compute_nearest_power_of_2(size_t n);
-
-/** Gets and returns the bucket tied to as key's hash number in a hashtable. */
-static bucket_entry* get_bucket(hashtable* table, void* key);
-
-/** Computes the hash for a key using a custom hash function and returns its index in a hashtable with a set capacity. */
-static size_t get_bucket_index(void* key, size_t capacity, uint32_t (*hash_function)(const void* key));
-
-/** Iterates on the bucket array and frees each bucket chain. */
-static void free_all_buckets(hashtable* table);
-
-// Bucket functions
-static bucket_entry* create_bucket(size_t key_size, size_t value_size, void* key, void* value) {
+static bucket_entry* create_bucket(size_t key_size, size_t value_size, void* key, void* value, uint32_t hash) {
     if (!key || !value) return NULL;
 
     // Allocate and null-check the created bucket entry
@@ -158,24 +143,90 @@ static bucket_entry* create_bucket(size_t key_size, size_t value_size, void* key
     // Use pointer arithmetic to put the memory for the kvp after the bucket
     bucket->key = memcpy(key_offset, key, key_size);
     bucket->value = memcpy(value_offset, value, value_size);
+    bucket->hash = hash;
+    bucket->next = NULL;
 
     return bucket;
 }
 
-static void free_bucket(bucket_entry* bucket) {
+/** Frees the current bucket entry as well as its contents. */
+static inline void free_bucket(bucket_entry* bucket) {
     if (bucket) free(bucket);
 }
 
-// Hashtable functions
-hashtable* hashtable_create(
-    size_t key_size, 
-    size_t value_size, 
-    uint32_t (*hash_function)(const void* key), 
-    int (*key_equals)(const void* lhs, const void* rhs)) 
-{
-    return hashtable_create_with_capacity(key_size, value_size, hash_function, key_equals, DEFAULT_HTABLE_CAPACITY);
+static void rehash(hashtable* table) {
+    if (!table) return;
+
+    // Assuming the capacity is already a power of 2, multiply by 2 to get the next one
+    size_t new_capacity = table->capacity * 2;
+
+    // Create a new array of buckets with the new capacity
+    bucket_entry** expanded_buckets = calloc(new_capacity, sizeof(bucket_entry*));
+    if (!expanded_buckets) return;
+
+    // Migrate the old bucket array's contents into the new array
+    for (size_t i = 0; i < table->capacity; i++) {
+        bucket_entry* current = table->buckets[i];
+        while (current) {
+            // Store a reference to the next node
+            bucket_entry* next = current->next;
+
+            // // Reuse the cached hash directly instead of recalculating it
+            size_t new_index = current->hash & (new_capacity - 1);
+
+            // Link current into its new bucket array (fast-prepend the nodes)
+            // We don't need to order them correctly as we treat collision chains as unordered sets
+            current->next = expanded_buckets[new_index];
+            expanded_buckets[new_index] = current;
+
+            current = next;
+        }
+    }
+
+    free(table->buckets);
+    table->buckets = expanded_buckets;
+    table->capacity = new_capacity;
 }
 
+/** Computes and returns the nearest power of 2 of a number. */
+static size_t compute_nearest_power_of_2(size_t n) {
+    // Ensure that n is always at least one (to avoid decrements below 0)
+    if (n < 2) n = 1;
+
+    // Decrement n (so a size of 8 doesn't get rounded to 16 for instance)
+    n--;
+
+    // Smear chain the number for each power of 2 until we fill the entire number
+    // Uses sizeof(size_t) * CHAR_BIT to dynamically adapt to the system
+    // Instead of calculating powers of 2 by hand, we use the for loop index and multiply it by 2 each time
+    for (size_t i = 1; i < sizeof(size_t) * CHAR_BIT; i *= 2) {
+        n |= n >> i;
+    }
+
+    // Increment n back to get the final number
+    n++;
+    return n;
+}
+
+/** Iterates on the bucket array and frees each bucket chain. */
+static void free_all_buckets(hashtable* table) {
+    // Free each bucket entry in each collision chain of the bucket array
+    for (size_t i = 0; i < table->capacity; i++) {
+        if (!table->buckets[i]) continue;
+
+        bucket_entry* current = table->buckets[i];
+        while (current) {
+            // Save the reference to the next entry to assign it back
+            bucket_entry* next = current->next;
+
+            // Free the current node
+            free(current);
+            current = next;
+        }
+    }
+}
+
+// Hashtable functions
 hashtable* hashtable_create_with_capacity(
     size_t key_size,
     size_t value_size,
@@ -214,11 +265,14 @@ hashtable* hashtable_create_with_capacity(
 
 void* hashtable_get(hashtable* table, void* key) {
     if (!table || !key) return NULL;
-    bucket_entry* bucket = get_bucket(table, key);
+    
+    uint32_t hash = table->hash_function(key);
+    size_t index = hash & (table->capacity - 1);
+    bucket_entry* bucket = table->buckets[index];
 
     // If the bucket exists, we need to compare and find our key in the bucket list
     while (bucket) {
-        if (table->key_equals(key, bucket->key)) {
+        if (bucket->hash == hash && table->key_equals(key, bucket->key)) {
             return bucket->value; // Immediately return to avoid additional iterations
         }
         bucket = bucket->next;
@@ -236,11 +290,11 @@ int hashtable_insert(hashtable* table, void* key, void* value) {
     // Rehash if the count would reach the capacity
     if (table->count >= table->capacity * REHASH_THRESHOLD) rehash(table);
 
-    // Get the index from the key hash
-    size_t index = get_bucket_index(key, table->capacity, table->hash_function);
+    uint32_t hash = table->hash_function(key);
+    size_t index = hash & (table->capacity - 1);
     
     // Create the bucket to add
-    bucket_entry* new = create_bucket(table->key_size, table->value_size, key, value);
+    bucket_entry* new = create_bucket(table->key_size, table->value_size, key, value, hash);
     if (!new) return 0;
 
     // Else, prepend the new element to the bucket chain
@@ -266,14 +320,18 @@ int hashtable_update(hashtable* table, void* key, void* value) {
 
 int hashtable_delete(hashtable* table, void* key) {
     if (!table || !key) return 0;
-    
-    // Get the index from the key hash
-    size_t index = get_bucket_index(key, table->capacity, table->hash_function);
+
+    uint32_t hash = table->hash_function(key);
+    size_t index = hash & (table->capacity - 1);
     
     bucket_entry* current = table->buckets[index];
     bucket_entry* prev = NULL;
 
-    while (current && !table->key_equals(key, current->key)) {
+    // Traverse chain with hash pre-filtering
+    while (current) {
+        if (current->hash == hash && table->key_equals(key, current->key)) {
+            break; // Found the entry to delete
+        }
         prev = current;
         current = current->next;
     }
@@ -294,20 +352,6 @@ int hashtable_delete(hashtable* table, void* key) {
     free(current);
     table->count--;
     return 1;
-}
-
-int hashtable_contains(hashtable* table, void* key) {
-    if (!table || !key) return 0;
-
-    // Get the bucket associated with the key
-    bucket_entry* bucket = get_bucket(table, key);
-
-    while (bucket) {
-        if (table->key_equals(key, bucket->key)) return 1;
-        bucket = bucket->next;
-    }
-
-    return 0;
 }
 
 void hashtable_clear(hashtable* table) {
@@ -365,89 +409,7 @@ void hashtable_print(hashtable* table, void (*print_key)(void* key), void (*prin
 }
 #endif
 
-// Internal functions
-static size_t compute_nearest_power_of_2(size_t n) {
-    // Ensure that n is always at least one (to avoid decrements below 0)
-    if (n < 2) n = 1;
-
-    // Decrement n (so a size of 8 doesn't get rounded to 16 for instance)
-    n--;
-
-    // Smear chain the number for each power of 2 until we fill the entire number
-    // Uses sizeof(size_t) * CHAR_BIT to dynamically adapt to the system
-    // Instead of calculating powers of 2 by hand, we use the for loop index and multiply it by 2 each time
-    for (size_t i = 1; i < sizeof(size_t) * CHAR_BIT; i *= 2) {
-        n |= n >> i;
-    }
-
-    // Increment n back to get the final number
-    n++;
-    return n;
-}
-
-static void rehash(hashtable* table) {
-    if (!table) return;
-
-    // Assuming the capacity is already a power of 2, multiply by 2 to get the next one
-    size_t new_capacity = table->capacity * 2;
-
-    // Create a new array of buckets with the new capacity
-    bucket_entry** expanded_buckets = calloc(new_capacity, sizeof(bucket_entry*));
-    if (!expanded_buckets) return;
-
-    // Migrate the old bucket array's contents into the new array
-    for (size_t i = 0; i < table->capacity; i++) {
-        if (!table->buckets[i]) continue;
-
-        bucket_entry* current = table->buckets[i];
-        while (current) {
-            // Store a reference to the next node
-            bucket_entry* next = current->next;
-
-            // Recalculate the new index for current
-            size_t new_index = get_bucket_index(current->key, new_capacity, table->hash_function);
-
-            // Link current into its new bucket array (fast-prepend the nodes)
-            // We don't need to order them correctly as we treat collision chains as unordered sets
-            current->next = expanded_buckets[new_index];
-            expanded_buckets[new_index] = current;
-
-            current = next;
-        }
-    }
-
-    free(table->buckets);
-    table->buckets = expanded_buckets;
-    table->capacity = new_capacity;
-}
-
-static inline size_t get_bucket_index(void* key, size_t capacity, uint32_t (*hash_function)(const void* key)) {
-    uint32_t hash = hash_function(key); // Hash the key and return the index
-    return hash & (capacity - 1);
-}
-
-static inline bucket_entry* get_bucket(hashtable* table, void* key) {
-    if (!key) return NULL;
-    size_t index = get_bucket_index(key, table->capacity, table->hash_function);
-    return table->buckets[index];
-}
-
-static void free_all_buckets(hashtable* table) {
-    // Free each bucket entry in each collision chain of the bucket array
-    for (size_t i = 0; i < table->capacity; i++) {
-        if (!table->buckets[i]) continue;
-
-        bucket_entry* current = table->buckets[i];
-        while (current) {
-            // Save the reference to the next entry to assign it back
-            bucket_entry* next = current->next;
-
-            // Free the current node
-            free(current);
-            current = next;
-        }
-    }
-}
+// Internal 
 
 #endif // HASHTABLE_IMPLEMENTATION
 #endif // HASHTABLE_H

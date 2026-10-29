@@ -25,7 +25,12 @@ typedef struct {
 node* create_node(size_t elem_size, void* elem);
 
 /** Frees the node and its contents. */
-void free_node(node* node);
+static inline void free_node(node* node) {
+    if (node) {
+        free(node->data);
+        free(node);
+    }
+}
 
 /**
  * Creates a new linkedlist with a fixed element size.
@@ -85,11 +90,11 @@ int linkedlist_remove(linkedlist* list, void* elem);
  */
 int linkedlist_remove_last(linkedlist* list);
 
-/** Clears the entire list. */
-void linkedlist_clear(linkedlist* list);
-
 /** Frees the list and its contents. */
 void linkedlist_free(linkedlist* list);
+
+/** Clears the entire list. */
+void linkedlist_clear(linkedlist* list);
 
 #ifdef SHADEC_DEBUG
 /** 
@@ -104,7 +109,16 @@ void linkedlist_print(linkedlist* list, void (*print_elem)(void* elem));
 
 // Internal functions definition
 /** Frees all nodes in a linked list. */
-static void free_all_nodes(linkedlist* list);
+static void free_all_nodes(linkedlist* list) {
+    if (!list) return;
+
+    node* current = list->head;
+    while (current != NULL) {
+        node* next_node = current->next; // Save the next pointer before we free current
+        free_node(current);
+        current = next_node;
+    }
+}
 
 // Node functions
 node* create_node(size_t elem_size, void* elem) {
@@ -129,13 +143,6 @@ node* create_node(size_t elem_size, void* elem) {
     new->previous = NULL;
 
     return new;
-}
-
-void free_node(node* node) {
-    if (node) {
-        free(node->data);
-        free(node);
-    }
 }
 
 // LinkedList functions
@@ -413,18 +420,6 @@ void linkedlist_print(linkedlist* list, void (*print_elem)(void* elem)) {
     printf("]");
 }
 #endif // SHADEC_DEBUG
-
-// Interal functions
-static void free_all_nodes(linkedlist* list) {
-    if (!list) return;
-
-    node* current = list->head;
-    while (current != NULL) {
-        node* next_node = current->next; // Save the next pointer before we free current
-        free_node(current);
-        current = next_node;
-    }
-}
 
 #endif // LINKEDLIST_IMPLEMENTATION
 #endif // LINKEDLIST_H

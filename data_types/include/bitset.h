@@ -19,19 +19,26 @@ typedef struct {
 } bitset;
 
 /**
- * Creates a bitset with a specified number of bits.
- * returns: A pointer to the created bitset, or NULL on error.
- */
-bitset* bitset_create(size_t size);
-
-/**
  * Creates a bitset with a specified number of bits and a specified capacity.
  * returns: A pointer to the created bitset, or NULL on error.
  */
 bitset* bitset_create_with_capacity(size_t size, size_t capacity);
 
+/**
+ * Creates a bitset with a specified number of bits.
+ * returns: A pointer to the created bitset, or NULL on error.
+ */
+static inline bitset* bitset_create(size_t size) {
+    return bitset_create_with_capacity(size, DEFAULT_SET_CAPACITY);
+}
+
 /** Frees the bitset and its internal words buffer. */
-void bitset_free(bitset* set);
+static inline void bitset_free(bitset* set) {
+    if (set) {
+        free(set->words);
+        free(set);
+    }
+}
 
 /** Sets all bits in the bitset to 1. */
 void bitset_set_all(bitset* set);
@@ -87,19 +94,24 @@ void bitset_print(bitset* set);
 
 // Internal function definitions
 /** Gets the word count in a bitset of specified size. */
-static inline size_t get_word_count(size_t size);
+static inline size_t get_word_count(size_t size) {
+    return (size + UINT_BITSIZE - 1) >> 5;
+}
 
 /**
  * Counts the number of active bits in a 32-bit word.
  * returns: The total number of bits set to 1.
  */
-static size_t word_popcount(uint32_t word);
-
-// Bitset functions
-bitset* bitset_create(size_t size) {
-    return bitset_create_with_capacity(size, DEFAULT_SET_CAPACITY);
+static size_t word_popcount(uint32_t word) {
+    size_t count = 0;
+    while (word != 0) {
+        count++;
+        word &= (word - 1); // Clears the lowest set bit
+    }
+    return count;
 }
 
+// Bitset functions
 bitset* bitset_create_with_capacity(size_t size, size_t capacity) {
     bitset* set = malloc(sizeof(bitset));
     if (!set) return NULL;
@@ -115,13 +127,6 @@ bitset* bitset_create_with_capacity(size_t size, size_t capacity) {
     set->cardinality = 0;
 
     return set;
-}
-
-void bitset_free(bitset* set) {
-    if (set) {
-        free(set->words);
-        free(set);
-    }
 }
 
 void bitset_set_all(bitset* set) {
@@ -334,20 +339,6 @@ void bitset_print(bitset* set) {
     printf("]\n");
 }
 #endif
-
-// Internal functions
-static inline size_t get_word_count(size_t size) {
-    return (size + UINT_BITSIZE - 1) >> 5;
-}
-
-static size_t word_popcount(uint32_t word) {
-    size_t count = 0;
-    while (word != 0) {
-        count++;
-        word &= (word - 1); // Clears the lowest set bit
-    }
-    return count;
-}
 
 #endif // BITSET_IMPLEMENTATION
 #endif // BITSET_H
