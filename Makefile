@@ -1,5 +1,6 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -O2 -Idata_types/include
+# Remove optimization from global CFLAGS so it can be controlled per file
+CFLAGS = -Wall -Wextra -std=c99 -Idata_types/include
 
 SRC_DIR = src
 OBJ_DIR = obj
@@ -15,9 +16,18 @@ all: directories $(TARGET_MAIN) $(TARGET_BENCH)
 directories:
 	@mkdir -p $(OBJ_DIR) $(BIN_DIR)
 
+# Default optimization level for any file that doesn't specify one
+OPT_LEVEL ?= -O2
+
 # Generic pattern rule to compile any .c file in src/ into obj/
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(OPT_LEVEL) -c $< -o $@
+
+# Compile main.c with -Os (optimize for size)
+$(OBJ_DIR)/main.o: OPT_LEVEL = -Os
+
+# Compile benchmark.c with -O3 (maximum performance)
+$(OBJ_DIR)/benchmark.o: OPT_LEVEL = -O3
 
 # Link main.o into the test runner executable
 $(TARGET_MAIN): $(OBJ_DIR)/main.o
